@@ -1,0 +1,11 @@
+flask
+flask_sqlalchemy
+flask_cors
+sqlalchemy
+werkzeug
+pillow
+qrcode
+python-barcode
+reportlab==4.2.2
+# For barcode scanning in web: use JS libraries (QuaggaJS, html5-qrcode) in frontend, not Python
+
