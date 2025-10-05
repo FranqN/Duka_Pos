@@ -7,5 +7,7 @@ pillow
 qrcode
 python-barcode
 reportlab==4.2.2
+gunicorn==23.0.0
+
 # For barcode scanning in web: use JS libraries (QuaggaJS, html5-qrcode) in frontend, not Python
 
