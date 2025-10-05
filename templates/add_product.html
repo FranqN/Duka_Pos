@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Add Product - Duka POS{% endblock %}
+{% block head %}
+<!-- QuaggaJS for barcode scanning -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card mt-4">
+            <div class="card-body">
+                <h3 class="card-title mb-4">Add Product</h3>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Product Name *</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="buying_price" class="form-label">Buying Price *</label>
+                        <input type="number" step="0.01" class="form-control" name="buying_price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="selling_price" class="form-label">Selling Price *</label>
+                        <input type="number" step="0.01" class="form-control" name="selling_price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stock" class="form-label">Stock Quantity *</label>
+                        <input type="number" class="form-control" name="stock" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="unit" class="form-label">Unit *</label>
+                        <select class="form-select" name="unit" required>
+                            {% for unit in units %}
+                                <option value="{{ unit }}">{{ unit }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category *</label>
+                        <select class="form-select" name="category" required>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplier" class="form-label">Supplier *</label>
+                        <select class="form-select" name="supplier" required>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.id }}">{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="barcode" class="form-label">Barcode</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="barcode" id="barcode-input">
+                            <button type="button" class="btn btn-outline-secondary" id="scan-barcode-btn">Scan</button>
+                        </div>
+                        <!-- Barcode scanner modal -->
+                        <div class="modal fade" id="barcodeModal" tabindex="-1" aria-labelledby="barcodeModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="barcodeModalLabel">Scan Barcode</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div id="barcode-scanner" style="width:100%;height:300px;background:#222"></div>
+                                        <div id="barcode-result" class="mt-2 text-success"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Product Image</label>
+                        <input type="file" class="form-control" name="image" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Add Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('scan-barcode-btn').onclick = function() {
+    var barcodeModal = new bootstrap.Modal(document.getElementById('barcodeModal'));
+    barcodeModal.show();
+
+    // Start QuaggaJS
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: document.querySelector('#barcode-scanner'),
+            constraints: {
+                facingMode: "environment"
+            }
+        },
+        decoder: {
+            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader", "upc_e_reader"]
+        }
+    }, function(err) {
+        if (err) {
+            document.getElementById('barcode-result').textContent = "Camera error: " + err;
+            return;
+        }
+        Quagga.start();
+    });
+
+    Quagga.onDetected(function(result) {
+        var code = result.codeResult.code;
+        document.getElementById('barcode-input').value = code;
+        document.getElementById('barcode-result').textContent = "Scanned: " + code;
+        Quagga.stop();
+        setTimeout(function() {
+            barcodeModal.hide();
+            document.getElementById('barcode-result').textContent = "";
+        }, 1000);
+    });
+
+    // Stop Quagga when modal closes
+    document.getElementById('barcodeModal').addEventListener('hidden.bs.modal', function () {
+        Quagga.stop();
+        document.getElementById('barcode-result').textContent = "";
+    });
+};
+</script>
+{% endblock %}

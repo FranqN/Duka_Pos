@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Edit Business Details - Duka{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Edit Business Details</h1>
+    <form method="post" enctype="multipart/form-data" class="row g-3">
+        <div class="col-md-6">
+            <label>Business Name</label>
+            <input type="text" name="business_name" class="form-control" value="{{ settings['business_name'].value }}">
+        </div>
+        <div class="col-md-6">
+            <label>Business Address</label>
+            <input type="text" name="business_address" class="form-control" value="{{ settings['business_address'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Email</label>
+            <input type="email" name="business_email" class="form-control" value="{{ settings['business_email'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Phone</label>
+            <input type="text" name="business_phone" class="form-control" value="{{ settings['business_phone'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Logo</label>
+            {% if logo %}
+                <div class="mb-2">
+                    <img src="/{{ logo }}" alt="Business Logo" style="max-height:80px;">
+                </div>
+            {% endif %}
+            <input type="file" name="business_logo" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Bank Name</label>
+            <input type="text" name="bank_name" class="form-control" value="{{ settings['bank_name'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Bank Account Name</label>
+            <input type="text" name="bank_account_name" class="form-control" value="{{ settings['bank_account_name'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Bank Account Number</label>
+            <input type="text" name="bank_account_number" class="form-control" value="{{ settings['bank_account_number'].value }}">
+        </div>
+        <div class="col-md-4">
+            <label>Tax ID</label>
+            <input type="text" name="tax_id" class="form-control" value="{{ settings['tax_id'].value }}">
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ url_for('system_settings_overview') }}" class="btn btn-secondary">Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

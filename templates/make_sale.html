@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Make a Sale - Duka POS{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4 text-center">Make a Sale</h1>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <form method="POST" class="card shadow-sm p-4 mb-4" id="saleForm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-7">
+                        <label class="form-label">Product</label>
+                        <div class="input-group">
+                            <input type="text" id="productSearch" class="form-control" placeholder="Search product by name or barcode..." onkeyup="filterProducts()">
+                            <button type="button" class="btn btn-outline-primary" id="scanBarcodeBtn" title="Scan Barcode">
+                                <i class="bi bi-upc-scan"></i>
+                            </button>
+                        </div>
+                        <select name="product_id" id="productSelect" class="form-select mt-2" required onchange="updateProductDetails()">
+                            <option value="">Select Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" data-barcode="{{ product.barcode }}" data-stock="{{ product.stock }}" data-buying="{{ product.buying_price }}" data-selling="{{ product.selling_price }}">{{ product.name }} (Stock: {{ product.stock }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" id="quantityInput" class="form-control" min="1" required onchange="updateTotals()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-select" required>
+                            {% for method in payment_methods %}
+                            <option value="{{ method }}">{{ method }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3 mt-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Customer Name</label>
+                        <input type="text" name="customer_name" class="form-control" placeholder="Optional">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Customer Contact</label>
+                        <input type="text" name="customer_contact" class="form-control" placeholder="Optional">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info" id="saleInfo" style="display:none;"></div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4 ms-auto">
+                        <button type="submit" class="btn btn-success w-100">Complete Sale</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Barcode scanner modal -->
+    <div class="modal fade" id="barcodeModal" tabindex="-1" aria-labelledby="barcodeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="barcodeModalLabel">Scan Barcode</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="barcode-scanner" style="width:100%;height:300px;background:#222"></div>
+                    <div id="barcode-result" class="mt-2 text-success"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if receipt %}
+    <div id="receiptPreview" class="mt-5">
+        <h5 class="text-center">Receipt Preview</h5>
+        <div class="border rounded p-4 bg-light mx-auto" style="max-width:400px;">
+            <div id="receiptContent">
+                <div class="mb-2"><strong>Product:</strong> {{ receipt.product }}</div>
+                <div class="mb-2"><strong>Quantity:</strong> {{ receipt.quantity }}</div>
+                <div class="mb-2"><strong>Total:</strong> {{ receipt.total }}</div>
+                <div class="mb-2"><strong>Customer:</strong> {{ receipt.customer }}</div>
+                <div class="mb-2"><strong>Contact:</strong> {{ receipt.contact }}</div>
+                <div class="mb-2"><strong>Payment:</strong> {{ receipt.payment_method }}</div>
+            </div>
+            <div class="d-flex justify-content-center mt-3">
+                <button class="btn btn-outline-secondary me-2" onclick="printReceipt()">Print Receipt</button>
+                {% if receipt.sale_id %}
+                <a id="downloadPdfBtn" class="btn btn-outline-primary" href="{{ url_for('download_receipt', sale_id=receipt.sale_id) }}" target="_blank">Download PDF</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function filterProducts() {
+    var input = document.getElementById('productSearch').value.toLowerCase();
+    var select = document.getElementById('productSelect');
+    for (var i = 0; i < select.options.length; i++) {
+        var txt = select.options[i].text.toLowerCase();
+        select.options[i].style.display = txt.includes(input) ? '' : 'none';
+    }
+}
+function updateProductDetails() {
+    var select = document.getElementById('productSelect');
+    var opt = select.options[select.selectedIndex];
+    var stock = opt.getAttribute('data-stock');
+    var buying = opt.getAttribute('data-buying');
+    var selling = opt.getAttribute('data-selling');
+    var info = document.getElementById('saleInfo');
+    info.style.display = 'block';
+    info.className = 'alert alert-info d-flex align-items-center';
+    info.innerHTML = '<i class="bi bi-info-circle me-2"></i> Stock: <strong>' + stock + '</strong> | Buying: <strong>' + buying + '</strong> | Selling: <strong>' + selling + '</strong>';
+    updateTotals();
+}
+function updateTotals() {
+    var select = document.getElementById('productSelect');
+    var opt = select.options[select.selectedIndex];
+    var stock = parseInt(opt.getAttribute('data-stock') || '0');
+    var buying = parseFloat(opt.getAttribute('data-buying') || '0');
+    var selling = parseFloat(opt.getAttribute('data-selling') || '0');
+    var qty = parseInt(document.getElementById('quantityInput').value || '0');
+    var info = document.getElementById('saleInfo');
+    if (qty > stock) {
+        info.className = 'alert alert-danger d-flex align-items-center';
+        info.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i> Insufficient stock!';
+    } else if (qty > 0) {
+        var total = selling * qty;
+        var profit = (selling - buying) * qty;
+        info.className = 'alert alert-success d-flex align-items-center';
+        info.innerHTML = '<i class="bi bi-cash-stack me-2"></i> Total: <strong>' + total.toFixed(2) + '</strong> | Profit: <strong>' + profit.toFixed(2) + '</strong>';
+    }
+}
+document.getElementById('saleForm').onsubmit = function(e) {
+    var select = document.getElementById('productSelect');
+    var opt = select.options[select.selectedIndex];
+    var stock = parseInt(opt.getAttribute('data-stock') || '0');
+    var qty = parseInt(document.getElementById('quantityInput').value || '0');
+    if (qty > stock) {
+        alert('Insufficient stock!');
+        e.preventDefault();
+        return false;
+    }
+    // Show receipt preview after sale (simulate)
+    setTimeout(function() {
+        var receipt = '<div class="mb-2"><strong>Product:</strong> ' + opt.text + '</div>';
+        receipt += '<div class="mb-2"><strong>Quantity:</strong> ' + qty + '</div>';
+        receipt += '<div class="mb-2"><strong>Total:</strong> ' + (parseFloat(opt.getAttribute('data-selling')) * qty).toFixed(2) + '</div>';
+        receipt += '<div class="mb-2"><strong>Customer:</strong> ' + (document.querySelector('[name=customer_name]').value || '-') + '</div>';
+        receipt += '<div class="mb-2"><strong>Contact:</strong> ' + (document.querySelector('[name=customer_contact]').value || '-') + '</div>';
+        document.getElementById('receiptContent').innerHTML = receipt;
+        document.getElementById('receiptPreview').style.display = 'block';
+    }, 500);
+};
+
+// Barcode scan logic
+document.getElementById('scanBarcodeBtn').onclick = function() {
+    var barcodeModal = new bootstrap.Modal(document.getElementById('barcodeModal'));
+    barcodeModal.show();
+
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: document.querySelector('#barcode-scanner'),
+            constraints: {
+                facingMode: "environment"
+            }
+        },
+        decoder: {
+            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader", "upc_e_reader"]
+        }
+    }, function(err) {
+        if (err) {
+            document.getElementById('barcode-result').textContent = "Camera error: " + err;
+            return;
+        }
+        Quagga.start();
+    });
+
+    Quagga.onDetected(function(result) {
+        var code = result.codeResult.code;
+        document.getElementById('barcode-result').textContent = "Scanned: " + code;
+        // Find product by barcode and select it
+        var select = document.getElementById('productSelect');
+        for (var i = 0; i < select.options.length; i++) {
+            if (select.options[i].getAttribute('data-barcode') === code) {
+                select.selectedIndex = i;
+                updateProductDetails();
+                break;
+            }
+        }
+        Quagga.stop();
+        setTimeout(function() {
+            barcodeModal.hide();
+            document.getElementById('barcode-result').textContent = "";
+        }, 1000);
+    });
+
+    document.getElementById('barcodeModal').addEventListener('hidden.bs.modal', function () {
+        Quagga.stop();
+        document.getElementById('barcode-result').textContent = "";
+    });
+};
+
+function printReceipt() {
+    var content = document.getElementById('receiptContent').innerHTML;
+    var win = window.open('', '', 'width=600,height=400');
+    win.document.write('<html><head><title>Receipt</title>');
+    win.document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">');
+    win.document.write('</head><body>');
+    win.document.write('<div class="container mt-4">' + content + '</div>');
+    win.document.write('</body></html>');
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+}
+</script>
+{% endblock %}
